@@ -35,12 +35,13 @@ import (
 )
 
 var (
-	certificateType = flag.String("type", "", "certificate type: node or client")
+	certificateType = flag.String("type", "", "certificate type: node, service or client")
 
 	addresses = flag.String("addresses", "", "comma-separated list of DNS names and IP addresses for node certificate")
 	user      = flag.String("user", "", "username for client certificate")
 
 	namespace       = flag.String("namespace", "", "kubernetes namespace for this pod")
+	serviceName     = flag.String("service-name", "", "service name for a service pod")
 	certsDir        = flag.String("certs-dir", "cockroach-certs", "certs directory")
 	keySize         = flag.Int("key-size", 2048, "RSA key size in bits")
 	symlinkCASource = flag.String("symlink-ca-from", "", "if non-empty, create <certs-dir>/ca.crt linking to this file")
@@ -76,6 +77,17 @@ func main() {
 		// The CSR name is the same.
 		filename = "node"
 		csrName = *namespace + "." + filename + "." + hostname
+		wantServerAuth = true
+	case "service":
+		if len(*addresses) == 0 {
+			log.Fatal("node certificate requested, but --addresses is empty")
+		}
+		template = serverCSR(strings.Split(*addresses, ","))
+
+		// Certificate name for services use the serviceName argument as identifier.
+		// The CSR name is the same.
+		filename = "service"
+		csrName = *namespace + "." + filename + "." + *serviceName
 		wantServerAuth = true
 	case "client":
 		if len(*user) == 0 {
